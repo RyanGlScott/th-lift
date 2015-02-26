@@ -18,9 +18,12 @@ module Language.Haskell.TH.Lift
 import Data.PackedString (PackedString, packString, unpackPS)
 #endif /* MIN_VERSION_template_haskell(2,4,0) */
 
+#if __GLASGOW_HASKELL__ < 710
+import GHC.Exts (Int(..))
+#endif
+
 #if !(MIN_VERSION_template_haskell(2,10,0))
 import Data.Ratio (Ratio)
-import GHC.Exts (Int(..))
 #endif /* !(MIN_VERSION_template_haskell(2,10,0)) */
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
@@ -134,15 +137,15 @@ instance Lift PackedString where
 instance Lift NameFlavour where
   lift NameS = [| NameS |]
   lift (NameQ modnam) = [| NameQ modnam |]
-#if MIN_VERSION_template_haskell(2,10,0)
+#if __GLASGOW_HASKELL__ >= 710
   lift (NameU i) = [| NameU i |]
   lift (NameL i) = [| NameL i |]
-#else /* MIN_VERSION_template_haskell(2,10,0) */
+#else /* __GLASGOW_HASKELL__ < 710 */
   lift (NameU i) = [| case $( lift (I# i) ) of
                           I# i' -> NameU i' |]
   lift (NameL i) = [| case $( lift (I# i) ) of
                           I# i' -> NameL i' |]
-#endif /* MIN_VERSION_template_haskell(2,10,0) */
+#endif /* __GLASGOW_HASKELL__ < 710 */
   lift (NameG nameSpace pkgName modnam)
    = [| NameG nameSpace pkgName modnam |]
 
