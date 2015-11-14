@@ -18,16 +18,23 @@ module Language.Haskell.TH.Lift
 import Data.PackedString (PackedString, packString, unpackPS)
 #endif /* MIN_VERSION_template_haskell(2,4,0) */
 
-#if __GLASGOW_HASKELL__ < 710
-import GHC.Exts (Int(..))
-#endif
+import GHC.Base (unpackCString#)
+import GHC.Exts (Double(..), Float(..), Int(..), Word(..))
+import GHC.Prim (Addr#, Double#, Float#, Int#, Word#)
+#if MIN_VERSION_template_haskell(2,11,0)
+import GHC.Exts (Char(..))
+import GHC.Prim (Char#)
+#endif /* !(MIN_VERSION_template_haskell(2,11,0)) */
 
+#if MIN_VERSION_template_haskell(2,8,0)
+import Data.Char (ord)
+#endif /* !(MIN_VERSION_template_haskell(2,8,0)) */
 #if !(MIN_VERSION_template_haskell(2,10,0))
 import Data.Ratio (Ratio)
 #endif /* !(MIN_VERSION_template_haskell(2,10,0)) */
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-import Control.Monad ((<=<))
+import Control.Monad ((<=<), zipWithM)
 #if MIN_VERSION_template_haskell(2,9,0)
 import Data.Maybe (catMaybes)
 #endif /* MIN_VERSION_template_haskell(2,9,0) */
@@ -73,7 +80,7 @@ deriveLiftOne i =
 #endif
       instanceD (ctxt dcx phvars vs)
                 (conT ''Lift `appT` typ n (map fst vs))
-                [funD 'lift (map doCons cons)]
+                [funD 'lift (consClauses n cons)]
     typ n = foldl appT (conT n) . map varT
     -- Only consider *-kinded type variables, because Lift instances cannot
     -- meaningfully be given to types of other kinds. Further, filter out type
@@ -100,21 +107,49 @@ deriveLiftOne i =
     liftPred n = conT ''Lift `appT` varT n
 #endif
 
+consClauses :: Name -> [Con] -> [Q Clause]
+consClauses n [] = [clause [wildP] (normalB e) []]
+  where
+    e = [| error $(stringE ("Can't lift value of empty datatype " ++ nameBase n)) |]
+consClauses _ cons = map doCons cons
+
 doCons :: Con -> Q Clause
 doCons (NormalC c sts) = do
-    let ns = zipWith (\_ i -> "x" ++ show (i :: Int)) sts [0..]
-        con = [| conE c |]
-        args = [ [| lift $(varE (mkName n)) |] | n <- ns ]
-        e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
-    clause [conP c (map (varP . mkName) ns)] (normalB e) []
-doCons (RecC c sts) = doCons $ NormalC c [(s, t) | (_, s, t) <- sts]
-doCons (InfixC _sty1 c _sty2) = do
+    ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) sts [0..]
     let con = [| conE c |]
-        left = [| lift $(varE (mkName "x0")) |]
-        right = [| lift $(varE (mkName "x1")) |]
+        args = [ liftVar n t | (n, (_, t)) <- zip ns sts ]
+        e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
+    clause [conP c (map varP ns)] (normalB e) []
+doCons (RecC c sts) = doCons $ NormalC c [(s, t) | (_, s, t) <- sts]
+doCons (InfixC sty1 c sty2) = do
+    x0 <- newName "x0"
+    x1 <- newName "x1"
+    let con = [| conE c |]
+        left = liftVar x0 (snd sty1)
+        right = liftVar x1 (snd sty2)
         e = [| infixApp $left $con $right |]
-    clause [infixP (varP (mkName "x0")) c (varP (mkName "x1"))] (normalB e) []
+    clause [infixP (varP x0) c (varP x1)] (normalB e) []
 doCons (ForallC _ _ c) = doCons c
+
+liftVar :: Name -> Type -> Q Exp
+liftVar varName (ConT tyName)
+#if MIN_VERSION_template_haskell(2,8,0)
+  | tyName == ''Addr#   = [| litE (stringPrimL (map (fromIntegral . ord)
+                                                    (unpackCString# $var))) |]
+#else /* !(MIN_VERSION_template_haskell(2,8,0)) */
+  | tyName == ''Addr#   = [| litE (stringPrimL (unpackCString# $var))       |]
+#endif
+#if MIN_VERSION_template_haskell(2,11,0)
+  | tyName == ''Char#   = [| litE (charPrimL               (C# $var))  |]
+#endif  /* !(MIN_VERSION_template_haskell(2,11,0)) */
+  | tyName == ''Double# = [| litE (doublePrimL (toRational (D# $var))) |]
+  | tyName == ''Float#  = [| litE (floatPrimL  (toRational (F# $var))) |]
+  | tyName == ''Int#    = [| litE (intPrimL    (toInteger  (I# $var))) |]
+  | tyName == ''Word#   = [| litE (wordPrimL   (toInteger  (W# $var))) |]
+  where
+    var :: Q Exp
+    var = varE varName
+liftVar varName _ = [| lift $(varE varName) |]
 
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
