@@ -61,7 +61,14 @@ deriveLiftMany' :: [Info] -> Q [Dec]
 deriveLiftMany' = mapM deriveLiftOne
 
 -- | Generates a lambda expresson which behaves like 'lift' (without requiring
--- a 'Lift' instance).
+-- a 'Lift' instance). Example:
+--
+-- @
+-- newtype Fix f = In { out :: f (Fix f) }
+--
+-- instance Lift (f (Fix f)) => Lift (Fix f) where
+--   lift = $(makeLift ''Fix)
+-- @
 makeLift :: Name -> Q Exp
 makeLift = makeLift' <=< reify
 
