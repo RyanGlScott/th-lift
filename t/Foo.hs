@@ -1,7 +1,10 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Foo where
 
 import GHC.Prim (Double#, Float#, Int#, Word#)
@@ -35,7 +38,12 @@ data Unboxed = Unboxed {
   primWord   :: Word#
   } deriving Show
 
+newtype Fix f = In { out :: f (Fix f) }
+deriving instance Show (f (Fix f)) => Show (Fix f)
+
 $(deriveLift ''Foo)
 $(deriveLift ''Rec)
 $(deriveLift ''Empty)
 $(deriveLift ''Unboxed)
+instance Lift (f (Fix f)) => Lift (Fix f) where
+  lift = $(makeLift ''Fix)

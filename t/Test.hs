@@ -15,3 +15,4 @@ main = do print $( lift (Foo "str1" 'c') )
                           'a'#
 #endif
                           1.0## 1.0# 1# 1##) )
+          print $( lift (In { out = Nothing }) )

@@ -11,6 +11,8 @@ module Language.Haskell.TH.Lift
   , deriveLiftMany
   , deriveLift'
   , deriveLiftMany'
+  , makeLift
+  , makeLift'
   , Lift(..)
   ) where
 
@@ -58,14 +60,17 @@ deriveLift' = fmap (:[]) . deriveLiftOne
 deriveLiftMany' :: [Info] -> Q [Dec]
 deriveLiftMany' = mapM deriveLiftOne
 
+-- | Generates a lambda expresson which behaves like 'lift' (without requiring
+-- a 'Lift' instance).
+makeLift :: Name -> Q Exp
+makeLift = makeLift' <=< reify
+
+-- | Like 'makeLift', but using a custom reification function.
+makeLift' :: Info -> Q Exp
+makeLift' i = withInfo i $ \_ n _ cons -> makeLiftOne n cons
+
 deriveLiftOne :: Info -> Q Dec
-deriveLiftOne i =
-    case i of
-      TyConI (DataD dcx n vsk cons _) ->
-        liftInstance dcx n (map unTyVarBndr vsk) cons
-      TyConI (NewtypeD dcx n vsk con _) ->
-        liftInstance dcx n (map unTyVarBndr vsk) [con]
-      _ -> error (modName ++ ".deriveLift: unhandled: " ++ pprint i)
+deriveLiftOne i = withInfo i liftInstance
   where
     liftInstance dcx n vs cons = do
 #if MIN_VERSION_template_haskell(2,9,0)
@@ -80,7 +85,7 @@ deriveLiftOne i =
 #endif
       instanceD (ctxt dcx phvars vs)
                 (conT ''Lift `appT` typ n (map fst vs))
-                [funD 'lift (consClauses n cons)]
+                [funD 'lift [clause [] (normalB (makeLiftOne n cons)) []]]
     typ n = foldl appT (conT n) . map varT
     -- Only consider *-kinded type variables, because Lift instances cannot
     -- meaningfully be given to types of other kinds. Further, filter out type
@@ -88,38 +93,36 @@ deriveLiftOne i =
     ctxt dcx phvars =
         fmap (dcx ++) . cxt . concatMap liftPred . filter (`notElem` phvars)
 #if MIN_VERSION_template_haskell(2,10,0)
-    unTyVarBndr (PlainTV v) = (v, StarT)
-    unTyVarBndr (KindedTV v k) = (v, k)
     liftPred (v, StarT) = [conT ''Lift `appT` varT v]
     liftPred (_, _) = []
 #elif MIN_VERSION_template_haskell(2,8,0)
-    unTyVarBndr (PlainTV v) = (v, StarT)
-    unTyVarBndr (KindedTV v k) = (v, k)
     liftPred (v, StarT) = [classP ''Lift [varT v]]
     liftPred (_, _) = []
 #elif MIN_VERSION_template_haskell(2,4,0)
-    unTyVarBndr (PlainTV v) = (v, StarK)
-    unTyVarBndr (KindedTV v k) = (v, k)
     liftPred (v, StarK) = [classP ''Lift [varT v]]
     liftPred (_, _) = []
-#else /* template-haskell < 2.4.0 */
-    unTyVarBndr v = v
+#else /* !(MIN_VERSION_template_haskell(2,4,0)) */
     liftPred n = conT ''Lift `appT` varT n
 #endif
 
-consClauses :: Name -> [Con] -> [Q Clause]
-consClauses n [] = [clause [wildP] (normalB e) []]
-  where
-    e = [| error $(stringE ("Can't lift value of empty datatype " ++ nameBase n)) |]
-consClauses _ cons = map doCons cons
+makeLiftOne :: Name -> [Con] -> Q Exp
+makeLiftOne n cons = do
+  e <- newName "e"
+  lam1E (varP e) $ caseE (varE e) $ consMatches n cons
 
-doCons :: Con -> Q Clause
+consMatches :: Name -> [Con] -> [Q Match]
+consMatches n [] = [match wildP (normalB e) []]
+  where
+    e = [| errorQExp $(stringE ("Can't lift value of empty datatype " ++ nameBase n)) |]
+consMatches _ cons = map doCons cons
+
+doCons :: Con -> Q Match
 doCons (NormalC c sts) = do
     ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) sts [0..]
     let con = [| conE c |]
         args = [ liftVar n t | (n, (_, t)) <- zip ns sts ]
         e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
-    clause [conP c (map varP ns)] (normalB e) []
+    match (conP c (map varP ns)) (normalB e) []
 doCons (RecC c sts) = doCons $ NormalC c [(s, t) | (_, s, t) <- sts]
 doCons (InfixC sty1 c sty2) = do
     x0 <- newName "x0"
@@ -128,7 +131,7 @@ doCons (InfixC sty1 c sty2) = do
         left = liftVar x0 (snd sty1)
         right = liftVar x1 (snd sty2)
         e = [| infixApp $left $con $right |]
-    clause [infixP (varP x0) c (varP x1)] (normalB e) []
+    match (infixP (varP x0) c (varP x1)) (normalB e) []
 doCons (ForallC _ _ c) = doCons c
 
 liftVar :: Name -> Type -> Q Exp
@@ -150,6 +153,37 @@ liftVar varName (ConT tyName)
     var :: Q Exp
     var = varE varName
 liftVar varName _ = [| lift $(varE varName) |]
+
+withInfo :: Info
+#if MIN_VERSION_template_haskell(2,4,0)
+         -> (Cxt -> Name -> [(Name, Kind)] -> [Con] -> Q a)
+#else /* !(MIN_VERSION_template_haskell(2,4,0)) */
+         -> (Cxt -> Name -> [Name]         -> [Con] -> Q a)
+#endif
+         -> Q a
+withInfo i f = case i of
+    TyConI (DataD dcx n vsk cons _) ->
+        f dcx n (map unTyVarBndr vsk) cons
+    TyConI (NewtypeD dcx n vsk con _) ->
+        f dcx n (map unTyVarBndr vsk) [con]
+    _ -> error (modName ++ ".deriveLift: unhandled: " ++ pprint i)
+  where
+#if MIN_VERSION_template_haskell(2,8,0)
+    unTyVarBndr (PlainTV v) = (v, StarT)
+    unTyVarBndr (KindedTV v k) = (v, k)
+#elif MIN_VERSION_template_haskell(2,4,0)
+    unTyVarBndr (PlainTV v) = (v, StarK)
+    unTyVarBndr (KindedTV v k) = (v, k)
+#else /* !(MIN_VERSION_template_haskell(2,4,0)) */
+    unTyVarBndr :: Name -> Name
+    unTyVarBndr v = v
+#endif
+
+-- A type-restricted version of error that ensures makeLift always returns a
+-- value of type Q Exp, even when used on an empty datatype.
+errorQExp :: String -> Q Exp
+errorQExp = error
+{-# INLINE errorQExp #-}
 
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
