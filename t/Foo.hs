@@ -1,10 +1,20 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if MIN_VERSION_template_haskell(2,7,0)
+{-# LANGUAGE TypeFamilies #-}
+#endif
+
+#if __GLASGOW_HASKELL__ >= 706
+{-# LANGUAGE PolyKinds #-}
+#endif
+
 module Foo where
 
 import GHC.Prim (Double#, Float#, Int#, Word#)
@@ -47,3 +57,20 @@ $(deriveLift ''Empty)
 $(deriveLift ''Unboxed)
 instance Lift (f (Fix f)) => Lift (Fix f) where
   lift = $(makeLift ''Fix)
+
+
+#if MIN_VERSION_template_haskell(2,7,0)
+data family DataFam
+# if __GLASGOW_HASKELL__ >= 706
+                    (a :: k)
+# else
+                     a
+# endif
+data    instance DataFam Int  = FamFoo Int
+                              | FamBar Int Int  deriving Show
+newtype instance DataFam Char = FamNewtype Char deriving Show
+
+$(deriveLift 'FamFoo)
+instance Lift (DataFam Char) where
+  lift = $(makeLift 'FamNewtype)
+#endif

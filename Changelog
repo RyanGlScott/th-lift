@@ -1,3 +1,9 @@
+2015-11-09  Mathieu Boespflug <mboes@tweag.net>
+    * Support for constructor-less datatypes and unboxed arguments, matching
+	  the behavior of DeriveLift in GHC 8.0.
+	* Allow splicing individual lift functions via makeLift.
+	* Support for data families.
+
 2014-12-07  Mathieu Boespflug <mboes@tweag.net>
 
 	* Support GHC 7.9 and hopefully 7.10, thanks to Richard Eisenberg.
