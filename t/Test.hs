@@ -16,3 +16,7 @@ main = do print $( lift (Foo "str1" 'c') )
 #endif
                           1.0## 1.0# 1# 1##) )
           print $( lift (In { out = Nothing }) )
+#if MIN_VERSION_template_haskell(2,7,0)
+          print $( lift (FamBar 1 2) )
+          print $( lift (FamNewtype 'z') )
+#endif
