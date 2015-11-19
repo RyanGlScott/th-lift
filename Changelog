@@ -1,3 +1,9 @@
+2015-11-19  Mathieu Boespflug <mboes@tweag.net>
+
+	* Added makeLift, for cases when it's necessary to write the
+	instance manually. (Thanks to Ryan Scott).
+	* Support empty datatypes and unboxed types.
+
 2014-12-07  Mathieu Boespflug <mboes@tweag.net>
 
 	* Support GHC 7.9 and hopefully 7.10, thanks to Richard Eisenberg.
