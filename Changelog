@@ -1,3 +1,7 @@
+2015-01-18  Mathieu Boespflug <mboes@tweag.net>
+
+	* GHC 8.1 compatibility.
+
 2015-11-19  Mathieu Boespflug <mboes@tweag.net>
 
 	* Added makeLift, for cases when it's necessary to write the
