@@ -121,17 +121,17 @@ consMatches :: Name -> [Con] -> [Q Match]
 consMatches n [] = [match wildP (normalB e) []]
   where
     e = [| errorQExp $(stringE ("Can't lift value of empty datatype " ++ nameBase n)) |]
-consMatches _ cons = map doCons cons
+consMatches _ cons = concatMap doCons cons
 
-doCons :: Con -> Q Match
-doCons (NormalC c sts) = do
+doCons :: Con -> [Q Match]
+doCons (NormalC c sts) = (:[]) $ do
     ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) sts [0..]
     let con = [| conE c |]
         args = [ liftVar n t | (n, (_, t)) <- zip ns sts ]
         e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
     match (conP c (map varP ns)) (normalB e) []
 doCons (RecC c sts) = doCons $ NormalC c [(s, t) | (_, s, t) <- sts]
-doCons (InfixC sty1 c sty2) = do
+doCons (InfixC sty1 c sty2) = (:[]) $ do
     x0 <- newName "x0"
     x1 <- newName "x1"
     let con = [| conE c |]
@@ -140,6 +140,21 @@ doCons (InfixC sty1 c sty2) = do
         e = [| infixApp $left $con $right |]
     match (infixP (varP x0) c (varP x1)) (normalB e) []
 doCons (ForallC _ _ c) = doCons c
+#if MIN_VERSION_template_haskell(2,11,0)
+-- GADTs can have multiple constructor names, when they are written like:
+--
+-- data T where
+--   MkT1, MkT2 :: T
+doCons (GadtC cs sts _) = map (\c -> do
+    ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) sts [0..]
+    let con = [| conE c |]
+        args = [ liftVar n t | (n, (_, t)) <- zip ns sts ]
+        e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
+    match (conP c (map varP ns)) (normalB e) []
+  ) cs
+doCons (RecGadtC cs sts _) =
+      concatMap (\c -> doCons $ NormalC c [(s,t) | (_, s, t) <- sts]) cs
+#endif
 
 liftVar :: Name -> Type -> Q Exp
 liftVar varName (ConT tyName)
@@ -169,10 +184,17 @@ withInfo :: Info
 #endif
          -> Q a
 withInfo i f = case i of
+#if MIN_VERSION_template_haskell(2,11,0)
+    TyConI (DataD dcx n vsk _ cons _) ->
+        f dcx n (map unTyVarBndr vsk) cons
+    TyConI (NewtypeD dcx n vsk _ con _) ->
+        f dcx n (map unTyVarBndr vsk) [con]
+#else
     TyConI (DataD dcx n vsk cons _) ->
         f dcx n (map unTyVarBndr vsk) cons
     TyConI (NewtypeD dcx n vsk con _) ->
         f dcx n (map unTyVarBndr vsk) [con]
+#endif
     _ -> error (modName ++ ".deriveLift: unhandled: " ++ pprint i)
   where
 #if MIN_VERSION_template_haskell(2,8,0)
