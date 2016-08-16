@@ -52,7 +52,7 @@ deriveLift name = do
   info <- reify name
   deriveLift' roles info
 #else
-  deriveLift = deriveLift' <=< reify
+deriveLift = deriveLift' <=< reify
 #endif
 
 -- | Derive Lift instances for many datatypes.
@@ -63,7 +63,7 @@ deriveLiftMany names = do
   infos <- mapM reify names
   deriveLiftMany' (zip roles infos)
 #else
-  deriveLiftMany = deriveLiftMany' <=< mapM reify
+deriveLiftMany = deriveLiftMany' <=< mapM reify
 #endif
 
 -- | Obtain Info values through a custom reification function. This is useful
