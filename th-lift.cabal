@@ -31,7 +31,7 @@ Library
     Build-Depends: packedstring == 0.1.*,
                    template-haskell >= 2.2 && < 2.4
   else
-    Build-Depends: template-haskell >= 2.4 && < 2.12
+    Build-Depends: template-haskell >= 2.4 && < 2.13
 
 Test-Suite test
   Type:             exitcode-stdio-1.0
@@ -46,4 +46,4 @@ Test-Suite test
     Build-Depends: packedstring == 0.1.*,
                    template-haskell >= 2.2 && < 2.4
   else
-    Build-Depends: template-haskell >= 2.4 && < 2.12
+    Build-Depends: template-haskell >= 2.4 && < 2.13
