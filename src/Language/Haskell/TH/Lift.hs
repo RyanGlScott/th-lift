@@ -46,19 +46,41 @@ modName = "Language.Haskell.TH.Lift"
 
 -- | Derive Lift instances for the given datatype.
 deriveLift :: Name -> Q [Dec]
+#if MIN_VERSION_template_haskell(2,9,0)
+deriveLift name = do
+  roles <- qReifyRoles name
+  info <- reify name
+  deriveLift' roles info
+#else
 deriveLift = deriveLift' <=< reify
+#endif
 
 -- | Derive Lift instances for many datatypes.
 deriveLiftMany :: [Name] -> Q [Dec]
+#if MIN_VERSION_template_haskell(2,9,0)
+deriveLiftMany names = do
+  roles <- mapM qReifyRoles names
+  infos <- mapM reify names
+  deriveLiftMany' (zip roles infos)
+#else
 deriveLiftMany = deriveLiftMany' <=< mapM reify
+#endif
 
 -- | Obtain Info values through a custom reification function. This is useful
 -- when generating instances for datatypes that have not yet been declared.
+#if MIN_VERSION_template_haskell(2,9,0)
+deriveLift' :: [Role] -> Info -> Q [Dec]
+deriveLift' roles = fmap (:[]) . deriveLiftOne roles
+
+deriveLiftMany' :: [([Role], Info)] -> Q [Dec]
+deriveLiftMany' = mapM (uncurry deriveLiftOne)
+#else
 deriveLift' :: Info -> Q [Dec]
 deriveLift' = fmap (:[]) . deriveLiftOne
 
 deriveLiftMany' :: [Info] -> Q [Dec]
 deriveLiftMany' = mapM deriveLiftOne
+#endif
 
 -- | Generates a lambda expresson which behaves like 'lift' (without requiring
 -- a 'Lift' instance). Example:
@@ -76,12 +98,17 @@ makeLift = makeLift' <=< reify
 makeLift' :: Info -> Q Exp
 makeLift' i = withInfo i $ \_ n _ cons -> makeLiftOne n cons
 
+#if MIN_VERSION_template_haskell(2,9,0)
+deriveLiftOne :: [Role] -> Info -> Q Dec
+deriveLiftOne roles i = withInfo i liftInstance
+#else
 deriveLiftOne :: Info -> Q Dec
 deriveLiftOne i = withInfo i liftInstance
+#endif
   where
     liftInstance dcx n vs cons = do
 #if MIN_VERSION_template_haskell(2,9,0)
-      roles <- qReifyRoles n
+      -- roles <- qReifyRoles n
       -- Compute the set of phantom variables.
       let phvars = catMaybes $
             zipWith (\v role -> if role == PhantomR then Just v else Nothing)
