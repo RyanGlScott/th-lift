@@ -28,9 +28,13 @@ import GHC.Exts (Char(..))
 import GHC.Prim (Char#)
 #endif /* !(MIN_VERSION_template_haskell(2,11,0)) */
 
+import Control.Applicative
 #if MIN_VERSION_template_haskell(2,8,0)
 import Data.Char (ord)
 #endif /* !(MIN_VERSION_template_haskell(2,8,0)) */
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity
+#endif
 #if !(MIN_VERSION_template_haskell(2,10,0))
 import Data.Ratio (Ratio)
 #endif /* !(MIN_VERSION_template_haskell(2,10,0)) */
@@ -288,3 +292,11 @@ instance Lift () where
 instance Integral a => Lift (Ratio a) where
   lift x = return (LitE (RationalL (toRational x)))
 #endif
+
+#if MIN_VERSION_base(4,8,0)
+instance Lift a => Lift (Identity a) where
+  lift = appE (conE 'Identity) . lift . runIdentity
+#endif
+
+instance Lift a => Lift (Const a b) where
+  lift = appE (conE 'Const) . lift . getConst
