@@ -39,51 +39,50 @@ import Data.Functor.Identity
 import Data.Ratio (Ratio)
 #endif /* !(MIN_VERSION_template_haskell(2,10,0)) */
 import Language.Haskell.TH
+import Language.Haskell.TH.Datatype
+import qualified Language.Haskell.TH.Lib as Lib (starK)
 import Language.Haskell.TH.Syntax
 import Control.Monad ((<=<), zipWithM)
 #if MIN_VERSION_template_haskell(2,9,0)
 import Data.Maybe (catMaybes)
 #endif /* MIN_VERSION_template_haskell(2,9,0) */
 
-modName :: String
-modName = "Language.Haskell.TH.Lift"
-
 -- | Derive Lift instances for the given datatype.
 deriveLift :: Name -> Q [Dec]
 #if MIN_VERSION_template_haskell(2,9,0)
 deriveLift name = do
-  roles <- qReifyRoles name
-  info <- reify name
-  deriveLift' roles info
+  roles <- reifyDatatypeRoles name
+  info <- reifyDatatype name
+  fmap (:[]) $ deriveLiftOne roles info
 #else
-deriveLift = deriveLift' <=< reify
+deriveLift = fmap (:[]) . deriveLiftOne <=< reifyDatatype
 #endif
 
 -- | Derive Lift instances for many datatypes.
 deriveLiftMany :: [Name] -> Q [Dec]
 #if MIN_VERSION_template_haskell(2,9,0)
 deriveLiftMany names = do
-  roles <- mapM qReifyRoles names
-  infos <- mapM reify names
-  deriveLiftMany' (zip roles infos)
+  roles <- mapM reifyDatatypeRoles names
+  infos <- mapM reifyDatatype names
+  mapM (uncurry deriveLiftOne) $ zip roles infos
 #else
-deriveLiftMany = deriveLiftMany' <=< mapM reify
+deriveLiftMany = mapM deriveLiftOne <=< mapM reifyDatatype
 #endif
 
 -- | Obtain Info values through a custom reification function. This is useful
 -- when generating instances for datatypes that have not yet been declared.
 #if MIN_VERSION_template_haskell(2,9,0)
 deriveLift' :: [Role] -> Info -> Q [Dec]
-deriveLift' roles = fmap (:[]) . deriveLiftOne roles
+deriveLift' roles = fmap (:[]) . deriveLiftOne roles <=< normalizeInfo
 
 deriveLiftMany' :: [([Role], Info)] -> Q [Dec]
-deriveLiftMany' = mapM (uncurry deriveLiftOne)
+deriveLiftMany' = mapM (\(rs, i) -> deriveLiftOne rs =<< normalizeInfo i)
 #else
 deriveLift' :: Info -> Q [Dec]
-deriveLift' = fmap (:[]) . deriveLiftOne
+deriveLift' = fmap (:[]) . deriveLiftOne <=< normalizeInfo
 
 deriveLiftMany' :: [Info] -> Q [Dec]
-deriveLiftMany' = mapM deriveLiftOne
+deriveLiftMany' = mapM (deriveLiftOne <=< normalizeInfo)
 #endif
 
 -- | Generates a lambda expresson which behaves like 'lift' (without requiring
@@ -96,95 +95,92 @@ deriveLiftMany' = mapM deriveLiftOne
 --   lift = $(makeLift ''Fix)
 -- @
 makeLift :: Name -> Q Exp
-makeLift = makeLift' <=< reify
+makeLift = makeLiftInternal <=< reifyDatatype
 
 -- | Like 'makeLift', but using a custom reification function.
 makeLift' :: Info -> Q Exp
-makeLift' i = withInfo i $ \_ n _ cons -> makeLiftOne n cons
+makeLift' = makeLiftInternal <=< normalizeInfo
+
+makeLiftInternal :: DatatypeInfo -> Q Exp
+makeLiftInternal i = withInfo i $ \_ n _ cons -> makeLiftOne n cons
 
 #if MIN_VERSION_template_haskell(2,9,0)
-deriveLiftOne :: [Role] -> Info -> Q Dec
+deriveLiftOne :: [Role] -> DatatypeInfo -> Q Dec
 deriveLiftOne roles i = withInfo i liftInstance
 #else
-deriveLiftOne :: Info -> Q Dec
+deriveLiftOne :: DatatypeInfo -> Q Dec
 deriveLiftOne i = withInfo i liftInstance
 #endif
   where
-    liftInstance dcx n vs cons = do
+    liftInstance dcx n tys cons = do
 #if MIN_VERSION_template_haskell(2,9,0)
-      -- roles <- qReifyRoles n
+      -- roles <- reifyDatatypeRoles n
       -- Compute the set of phantom variables.
-      let phvars = catMaybes $
-            zipWith (\v role -> if role == PhantomR then Just v else Nothing)
-                    vs
+      let phtys = catMaybes $
+            zipWith (\t role -> if role == PhantomR then Just t else Nothing)
+                    tys
                     roles
 #else /* MIN_VERSION_template_haskell(2,9,0) */
-      let phvars = []
+      let phtys = []
 #endif
-      instanceD (ctxt dcx phvars vs)
-                (conT ''Lift `appT` typ n (map fst vs))
+      instanceD (ctxt dcx phtys tys)
+                (conT ''Lift `appT` typ n tys)
                 [funD 'lift [clause [] (normalB (makeLiftOne n cons)) []]]
-    typ n = foldl appT (conT n) . map varT
+    typ n = foldl appT (conT n) . map unKind
     -- Only consider *-kinded type variables, because Lift instances cannot
     -- meaningfully be given to types of other kinds. Further, filter out type
     -- variables that are obviously phantom.
-    ctxt dcx phvars =
-        fmap (dcx ++) . cxt . concatMap liftPred . filter (`notElem` phvars)
+    ctxt dcx phtys =
+        fmap (dcx ++) . cxt . concatMap liftPred . filter (`notElem` phtys)
+    liftPred ty =
+      case ty of
+        SigT t k
+          | k == Lib.starK -> mkLift t
+          | otherwise      -> []
+        _                  -> mkLift ty
 #if MIN_VERSION_template_haskell(2,10,0)
-    liftPred (v, StarT) = [conT ''Lift `appT` varT v]
-    liftPred (_, _) = []
-#elif MIN_VERSION_template_haskell(2,8,0)
-    liftPred (v, StarT) = [classP ''Lift [varT v]]
-    liftPred (_, _) = []
-#elif MIN_VERSION_template_haskell(2,4,0)
-    liftPred (v, StarK) = [classP ''Lift [varT v]]
-    liftPred (_, _) = []
-#else /* !(MIN_VERSION_template_haskell(2,4,0)) */
-    liftPred n = conT ''Lift `appT` varT n
+    mkLift ty = [conT ''Lift `appT` (return ty)]
+#else
+    mkLift ty = [classP ''Lift [return ty]]
 #endif
+    unKind (SigT t k)
+      | k == Lib.starK = return t
+    unKind t           = return t
 
-makeLiftOne :: Name -> [Con] -> Q Exp
+makeLiftOne :: Name -> [ConstructorInfo] -> Q Exp
 makeLiftOne n cons = do
   e <- newName "e"
   lam1E (varP e) $ caseE (varE e) $ consMatches n cons
 
-consMatches :: Name -> [Con] -> [Q Match]
+consMatches :: Name -> [ConstructorInfo] -> [Q Match]
 consMatches n [] = [match wildP (normalB e) []]
   where
     e = [| errorQExp $(stringE ("Can't lift value of empty datatype " ++ nameBase n)) |]
 consMatches _ cons = concatMap doCons cons
 
-doCons :: Con -> [Q Match]
-doCons (NormalC c sts) = (:[]) $ do
-    ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) sts [0..]
+doCons :: ConstructorInfo -> [Q Match]
+doCons (ConstructorInfo { constructorName    = c
+                        , constructorFields  = ts
+                        , constructorVariant = variant
+                        }) = (:[]) $ do
+    ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) ts [0..]
     let con = [| conE c |]
-        args = [ liftVar n t | (n, (_, t)) <- zip ns sts ]
-        e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
-    match (conP c (map varP ns)) (normalB e) []
-doCons (RecC c sts) = doCons $ NormalC c [(s, t) | (_, s, t) <- sts]
-doCons (InfixC sty1 c sty2) = (:[]) $ do
-    x0 <- newName "x0"
-    x1 <- newName "x1"
-    let con = [| conE c |]
-        left = liftVar x0 (snd sty1)
-        right = liftVar x1 (snd sty2)
-        e = [| infixApp $left $con $right |]
-    match (infixP (varP x0) c (varP x1)) (normalB e) []
-doCons (ForallC _ _ c) = doCons c
-#if MIN_VERSION_template_haskell(2,11,0)
--- GADTs can have multiple constructor names, when they are written like:
---
--- data T where
---   MkT1, MkT2 :: T
-doCons (GadtC cs sts _) = map (\c -> do
-    ns <- zipWithM (\_ i -> newName ('x':show (i :: Int))) sts [0..]
-    let con = [| conE c |]
-        args = [ liftVar n t | (n, (_, t)) <- zip ns sts ]
-        e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con args
-    match (conP c (map varP ns)) (normalB e) []
-  ) cs
-doCons (RecGadtC cs sts _) =
-      concatMap (\c -> doCons $ NormalC c [(s,t) | (_, s, t) <- sts]) cs
+    case (variant, ns, ts) of
+      (InfixConstructor, [x0, x1], [t0, t1]) ->
+        let e = [| infixApp $(liftVar x0 t0) $con $(liftVar x1 t1) |]
+        in match (infixP (varP x0) c (varP x1)) (normalB e) []
+      (_, _, _) ->
+        let e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con $ zipWith liftVar ns ts
+        in match (conP c (map varP ns)) (normalB e) []
+
+#if MIN_VERSION_template_haskell(2,9,0)
+-- Reify the roles of a data type. Note that the argument Name may correspond
+-- to that of a data family instance constructor, so we need to go through
+-- reifyDatatype to determine what the parent data family Name is.
+reifyDatatypeRoles :: Name -> Q [Role]
+reifyDatatypeRoles n = do
+  DatatypeInfo { datatypeName = dn } <- reifyDatatype n
+  qReifyRoles dn
 #endif
 
 liftVar :: Name -> Type -> Q Exp
@@ -207,37 +203,16 @@ liftVar varName (ConT tyName)
     var = varE varName
 liftVar varName _ = [| lift $(varE varName) |]
 
-withInfo :: Info
-#if MIN_VERSION_template_haskell(2,4,0)
-         -> (Cxt -> Name -> [(Name, Kind)] -> [Con] -> Q a)
-#else /* !(MIN_VERSION_template_haskell(2,4,0)) */
-         -> (Cxt -> Name -> [Name]         -> [Con] -> Q a)
-#endif
+withInfo :: DatatypeInfo
+         -> (Cxt -> Name -> [Type] -> [ConstructorInfo] -> Q a)
          -> Q a
 withInfo i f = case i of
-#if MIN_VERSION_template_haskell(2,11,0)
-    TyConI (DataD dcx n vsk _ cons _) ->
-        f dcx n (map unTyVarBndr vsk) cons
-    TyConI (NewtypeD dcx n vsk _ con _) ->
-        f dcx n (map unTyVarBndr vsk) [con]
-#else
-    TyConI (DataD dcx n vsk cons _) ->
-        f dcx n (map unTyVarBndr vsk) cons
-    TyConI (NewtypeD dcx n vsk con _) ->
-        f dcx n (map unTyVarBndr vsk) [con]
-#endif
-    _ -> error (modName ++ ".deriveLift: unhandled: " ++ pprint i)
-  where
-#if MIN_VERSION_template_haskell(2,8,0)
-    unTyVarBndr (PlainTV v) = (v, StarT)
-    unTyVarBndr (KindedTV v k) = (v, k)
-#elif MIN_VERSION_template_haskell(2,4,0)
-    unTyVarBndr (PlainTV v) = (v, StarK)
-    unTyVarBndr (KindedTV v k) = (v, k)
-#else /* !(MIN_VERSION_template_haskell(2,4,0)) */
-    unTyVarBndr :: Name -> Name
-    unTyVarBndr v = v
-#endif
+    DatatypeInfo { datatypeContext = dcx
+                 , datatypeName    = n
+                 , datatypeVars    = vs
+                 , datatypeCons    = cons
+                 } ->
+      f dcx n vs cons
 
 -- A type-restricted version of error that ensures makeLift always returns a
 -- value of type Q Exp, even when used on an empty datatype.
@@ -275,8 +250,8 @@ instance Lift NameFlavour where
   lift (NameL i) = [| case $( lift (I# i) ) of
                           I# i' -> NameL i' |]
 #endif /* __GLASGOW_HASKELL__ < 710 */
-  lift (NameG nameSpace pkgName modnam)
-   = [| NameG nameSpace pkgName modnam |]
+  lift (NameG nameSpace' pkgName modnam)
+   = [| NameG nameSpace' pkgName modnam |]
 
 instance Lift NameSpace where
   lift VarName = [| VarName |]
