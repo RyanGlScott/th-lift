@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 * Remove `Lift ()`, `Ratio`, `Identity` and `Const ()` instances.
   These are now provided in [`th-lift-instances` package](http://hackage.haskell.org/package/th-lift-instances)
+- Use `TemplateHaskellQuotes` where available
 
 ## [0.7.11] - 2018-08-27
 

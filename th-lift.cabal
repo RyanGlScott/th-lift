@@ -1,6 +1,6 @@
 Name:               th-lift
 Version:            0.8
-Cabal-Version:      >= 1.8
+Cabal-Version:      1.12
 License:            BSD3
 License-Files:      COPYING, BSD3, GPL-2
 Copyright:          © 2006 Ian Lynagh, © 2010-2018 Mathieu Boespflug
@@ -24,15 +24,17 @@ source-repository head
   location: git://github.com/mboes/th-lift
 
 Library
-  Exposed-modules: Language.Haskell.TH.Lift
-  Extensions:      CPP, TemplateHaskell, MagicHash, TypeSynonymInstances, FlexibleInstances
-  Hs-Source-Dirs:  src
-  Build-Depends:   base              >= 4.3  && < 5,
-                   ghc-prim,
-                   th-abstraction   >= 0.2.3 && < 0.3,
-                   template-haskell >= 2.4   && < 2.15
+  Default-Language: Haskell2010
+  Exposed-modules:  Language.Haskell.TH.Lift
+  Other-Extensions: CPP,  MagicHash, TypeSynonymInstances, FlexibleInstances
+  Hs-Source-Dirs:   src
+  Build-Depends:    base              >= 4.3  && < 5,
+                    ghc-prim,
+                    th-abstraction   >= 0.2.3 && < 0.3,
+                    template-haskell >= 2.4   && < 2.15
 
 Test-Suite test
+  Default-Language: Haskell2010
   Type:             exitcode-stdio-1.0
   Main-Is:          Test.hs
   Hs-Source-Dirs:   t
