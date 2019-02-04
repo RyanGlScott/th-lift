@@ -16,10 +16,6 @@ module Language.Haskell.TH.Lift
   , Lift(..)
   ) where
 
-#if !(MIN_VERSION_template_haskell(2,4,0))
-import Data.PackedString (PackedString, packString, unpackPS)
-#endif /* MIN_VERSION_template_haskell(2,4,0) */
-
 import GHC.Base (unpackCString#)
 import GHC.Exts (Double(..), Float(..), Int(..), Word(..))
 import GHC.Prim (Addr#, Double#, Float#, Int#, Word#)
@@ -232,12 +228,8 @@ instance Lift PkgName where
 
 instance Lift ModName where
   lift n = [| mkModName $(lift $ modString n) |]
-
-#else /* MIN_VERSION_template_haskell(2,4,0) */
-instance Lift PackedString where
-  lift ps = [| packString $(lift $ unpackPS ps) |]
-
 #endif /* MIN_VERSION_template_haskell(2,4,0) */
+
 instance Lift NameFlavour where
   lift NameS = [| NameS |]
   lift (NameQ modnam) = [| NameQ modnam |]
