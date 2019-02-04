@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8]
+
+* Remove `Lift ()`, `Ratio`, `Identity` and `Const ()` instances.
+  These are now provided in [`th-lift-instances` package](http://hackage.haskell.org/package/th-lift-instances)
+
 ## [0.7.11] - 2018-08-27
 
 * Support for GHC 8.6.

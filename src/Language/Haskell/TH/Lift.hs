@@ -257,21 +257,3 @@ instance Lift NameSpace where
   lift VarName = [| VarName |]
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
-
-#if !(MIN_VERSION_template_haskell(2,10,0))
--- These instances should really go in the template-haskell package.
-
-instance Lift () where
-  lift _ = [| () |]
-
-instance Integral a => Lift (Ratio a) where
-  lift x = return (LitE (RationalL (toRational x)))
-#endif
-
-#if MIN_VERSION_base(4,8,0)
-instance Lift a => Lift (Identity a) where
-  lift = appE (conE 'Identity) . lift . runIdentity
-#endif
-
-instance Lift a => Lift (Const a b) where
-  lift = appE (conE 'Const) . lift . getConst
