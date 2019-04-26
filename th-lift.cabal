@@ -1,6 +1,6 @@
 Name:               th-lift
-Version:            0.7.11
-Cabal-Version:      >= 1.8
+Version:            0.8
+Cabal-Version:      1.12
 License:            BSD3
 License-Files:      COPYING, BSD3, GPL-2
 Copyright:          © 2006 Ian Lynagh, © 2010-2018 Mathieu Boespflug
@@ -9,9 +9,13 @@ Maintainer:         Mathieu Boespflug <mboes@tweag.net>
 Homepage:           http://github.com/mboes/th-lift
 Synopsis:           Derive Template Haskell's Lift class for datatypes.
 Description:
-  Derive Template Haskell's Lift class for datatypes.
+  Derive Template Haskell's Lift class for datatypes using @TemplateHaskell@
+  .
+  * <https://hackage.haskell.org/package/th-orphans th-orphans> package provides instances for @template-haskell@ syntax types
+  .
+  * <http://hackage.haskell.org/package/th-lift-instances th-lift-instances> package provides @Lift@ (compat) instances for types in @base@, @text@, @bytestring@, @vector@ etc.
 Category:           Language
-Tested-With:        GHC==7.4.2, GHC==7.6.3, GHC==7.8.4, GHC==7.10.2
+Tested-With:        GHC==7.0.4, GHC==7.2.2, GHC==7.4.2, GHC==7.6.3, GHC==7.8.4, GHC==7.10.3, GHC==8.0.2, GHC==8.2.2, GHC==8.4.4, GHC==8.6.5, GHC==8.8.1
 build-type:         Simple
 Extra-source-files: CHANGELOG.md
 
@@ -20,31 +24,27 @@ source-repository head
   location: git://github.com/mboes/th-lift
 
 Library
-  Exposed-modules: Language.Haskell.TH.Lift
-  Extensions:      CPP, TemplateHaskell, MagicHash, TypeSynonymInstances, FlexibleInstances
-  Hs-Source-Dirs:  src
-  Build-Depends:   base >= 3 && < 5,
-                   ghc-prim,
-                   th-abstraction >= 0.2.3
-
-  ghc-options:     -Wall
-  if impl(ghc < 6.12)
-    Build-Depends: packedstring == 0.1.*,
-                   template-haskell >= 2.2 && < 2.4
+  Default-Language: Haskell2010
+  Exposed-modules:  Language.Haskell.TH.Lift
+  Other-Extensions: CPP,  MagicHash, TypeSynonymInstances, FlexibleInstances
+  if impl(ghc >= 8.0)
+    Other-Extensions: TemplateHaskellQuotes
   else
-    Build-Depends: template-haskell >= 2.4 && < 2.15
+    Other-Extensions: TemplateHaskell
+  Hs-Source-Dirs:   src
+  Build-Depends:    base              >= 4.3  && < 5,
+                    ghc-prim,
+                    th-abstraction   >= 0.2.3 && < 0.4,
+                    template-haskell >= 2.4   && < 2.15
 
 Test-Suite test
+  Default-Language: Haskell2010
   Type:             exitcode-stdio-1.0
   Main-Is:          Test.hs
   Hs-Source-Dirs:   t
   other-modules:    Foo
   ghc-options:      -Wall
-  Build-Depends:    base >= 3 && < 5,
+  Build-Depends:    base,
                     ghc-prim,
-                    th-lift
-  if impl(ghc < 6.12)
-    Build-Depends: packedstring == 0.1.*,
-                   template-haskell >= 2.2 && < 2.4
-  else
-    Build-Depends: template-haskell >= 2.4 && < 2.15
+                    th-lift,
+                    template-haskell

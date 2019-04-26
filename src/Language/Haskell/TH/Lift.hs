@@ -1,8 +1,12 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+#if __GLASGOW_HASKELL__ >= 800
+{-# LANGUAGE TemplateHaskellQuotes #-}
+#else
+{-# LANGUAGE TemplateHaskell #-}
+#endif
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -15,10 +19,6 @@ module Language.Haskell.TH.Lift
   , makeLift'
   , Lift(..)
   ) where
-
-#if !(MIN_VERSION_template_haskell(2,4,0))
-import Data.PackedString (PackedString, packString, unpackPS)
-#endif /* MIN_VERSION_template_haskell(2,4,0) */
 
 import GHC.Base (unpackCString#)
 import GHC.Exts (Double(..), Float(..), Int(..), Word(..))
@@ -155,7 +155,7 @@ makeLiftOne n cons = do
 consMatches :: Name -> [ConstructorInfo] -> [Q Match]
 consMatches n [] = [match wildP (normalB e) []]
   where
-    e = [| errorQExp $(stringE ("Can't lift value of empty datatype " ++ nameBase n)) |]
+    e = varE 'errorQExp `appE` (stringE $ "Can't lift value of empty datatype " ++ nameBase n)
 consMatches _ cons = concatMap doCons cons
 
 doCons :: ConstructorInfo -> [Q Match]
@@ -167,10 +167,10 @@ doCons (ConstructorInfo { constructorName    = c
     let con = [| conE c |]
     case (variant, ns, ts) of
       (InfixConstructor, [x0, x1], [t0, t1]) ->
-        let e = [| infixApp $(liftVar x0 t0) $con $(liftVar x1 t1) |]
+        let e = varE 'infixApp `appE` liftVar x0 t0 `appE` con `appE` liftVar x1 t1
         in match (infixP (varP x0) c (varP x1)) (normalB e) []
       (_, _, _) ->
-        let e = foldl (\e1 e2 -> [| appE $e1 $e2 |]) con $ zipWith liftVar ns ts
+        let e = foldl (\e1 e2 -> varE 'appE `appE` e1 `appE` e2) con $ zipWith liftVar ns ts
         in match (conP c (map varP ns)) (normalB e) []
 
 #if MIN_VERSION_template_haskell(2,9,0)
@@ -186,31 +186,41 @@ reifyDatatypeRoles n = do
 liftVar :: Name -> Type -> Q Exp
 liftVar varName (ConT tyName)
 #if MIN_VERSION_template_haskell(2,8,0)
-  | tyName == ''Addr#   = [| litE (stringPrimL (map (fromIntegral . ord)
-                                                    (unpackCString# $var))) |]
+  | tyName == ''Addr#   = apps
+    [ varE 'litE, varE 'stringPrimL, varE 'map, [| fromIntegral . ord |]
+    , varE 'unpackCString# ]
 #else /* !(MIN_VERSION_template_haskell(2,8,0)) */
-  | tyName == ''Addr#   = [| litE (stringPrimL (unpackCString# $var))       |]
+  | tyName == ''Addr#   = apps
+    [ varE 'litE, varE 'stringPrimL, varE 'unpackCString# ]
 #endif
 #if MIN_VERSION_template_haskell(2,11,0)
-  | tyName == ''Char#   = [| litE (charPrimL               (C# $var))  |]
+  | tyName == ''Char#   = apps [ varE 'litE, varE 'charPrimL, conE 'C# ]
 #endif  /* !(MIN_VERSION_template_haskell(2,11,0)) */
-  | tyName == ''Double# = [| litE (doublePrimL (toRational (D# $var))) |]
-  | tyName == ''Float#  = [| litE (floatPrimL  (toRational (F# $var))) |]
-  | tyName == ''Int#    = [| litE (intPrimL    (toInteger  (I# $var))) |]
-  | tyName == ''Word#   = [| litE (wordPrimL   (toInteger  (W# $var))) |]
+  | tyName == ''Double# = apps [ varE 'litE, varE 'doublePrimL, varE 'toRational, conE 'D# ]
+  | tyName == ''Float#  = apps [ varE 'litE, varE 'floatPrimL,  varE 'toRational, conE 'F# ]
+  | tyName == ''Int#    = apps [ varE 'litE, varE 'intPrimL,    varE 'toInteger,  conE 'I# ]
+  | tyName == ''Word#   = apps [ varE 'litE, varE 'wordPrimL,   varE 'toInteger,  conE 'W# ]
+
   where
+    apps  = foldr appE var
+
     var :: Q Exp
     var = varE varName
-liftVar varName _ = [| lift $(varE varName) |]
+
+liftVar varName _ = varE 'lift `appE` varE varName
 
 withInfo :: DatatypeInfo
          -> (Cxt -> Name -> [Type] -> [ConstructorInfo] -> Q a)
          -> Q a
 withInfo i f = case i of
-    DatatypeInfo { datatypeContext = dcx
-                 , datatypeName    = n
-                 , datatypeVars    = vs
-                 , datatypeCons    = cons
+    DatatypeInfo { datatypeContext   = dcx
+                 , datatypeName      = n
+#if MIN_VERSION_th_abstraction(0,3,0)
+                 , datatypeInstTypes = vs
+#else
+                 , datatypeVars      = vs
+#endif
+                 , datatypeCons      = cons
                  } ->
       f dcx n vs cons
 
@@ -225,19 +235,15 @@ instance Lift Name where
 
 #if MIN_VERSION_template_haskell(2,4,0)
 instance Lift OccName where
-  lift n = [| mkOccName $(lift $ occString n) |]
+  lift n = [| mkOccName |] `appE` lift (occString n)
 
 instance Lift PkgName where
-  lift n = [| mkPkgName $(lift $ pkgString n) |]
+  lift n = [| mkPkgName |] `appE` lift (pkgString n)
 
 instance Lift ModName where
-  lift n = [| mkModName $(lift $ modString n) |]
-
-#else /* MIN_VERSION_template_haskell(2,4,0) */
-instance Lift PackedString where
-  lift ps = [| packString $(lift $ unpackPS ps) |]
-
+  lift n = [| mkModName |] `appE` lift (modString n)
 #endif /* MIN_VERSION_template_haskell(2,4,0) */
+
 instance Lift NameFlavour where
   lift NameS = [| NameS |]
   lift (NameQ modnam) = [| NameQ modnam |]
@@ -257,21 +263,3 @@ instance Lift NameSpace where
   lift VarName = [| VarName |]
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
-
-#if !(MIN_VERSION_template_haskell(2,10,0))
--- These instances should really go in the template-haskell package.
-
-instance Lift () where
-  lift _ = [| () |]
-
-instance Integral a => Lift (Ratio a) where
-  lift x = return (LitE (RationalL (toRational x)))
-#endif
-
-#if MIN_VERSION_base(4,8,0)
-instance Lift a => Lift (Identity a) where
-  lift = appE (conE 'Identity) . lift . runIdentity
-#endif
-
-instance Lift a => Lift (Const a b) where
-  lift = appE (conE 'Const) . lift . getConst
