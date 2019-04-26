@@ -213,10 +213,14 @@ withInfo :: DatatypeInfo
          -> (Cxt -> Name -> [Type] -> [ConstructorInfo] -> Q a)
          -> Q a
 withInfo i f = case i of
-    DatatypeInfo { datatypeContext = dcx
-                 , datatypeName    = n
-                 , datatypeVars    = vs
-                 , datatypeCons    = cons
+    DatatypeInfo { datatypeContext   = dcx
+                 , datatypeName      = n
+#if MIN_VERSION_th_abstraction(0,3,0)
+                 , datatypeInstTypes = vs
+#else
+                 , datatypeVars      = vs
+#endif
+                 , datatypeCons      = cons
                  } ->
       f dcx n vs cons
 
