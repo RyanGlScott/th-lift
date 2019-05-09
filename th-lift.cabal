@@ -35,7 +35,7 @@ Library
   Build-Depends:    base              >= 4.3  && < 5,
                     ghc-prim,
                     th-abstraction   >= 0.2.3 && < 0.4,
-                    template-haskell >= 2.4   && < 2.15
+                    template-haskell >= 2.4   && < 2.16
 
 Test-Suite test
   Default-Language: Haskell2010
@@ -48,3 +48,4 @@ Test-Suite test
                     ghc-prim,
                     th-lift,
                     template-haskell
+
