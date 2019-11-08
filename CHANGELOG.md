@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [next] - ????-??-??
+
+* Support GHC 8.10/`template-haskell-2.16`.
+* Derive implementations of `liftTyped` (in addition to `lift`) when using
+  `template-haskell-2.16` or later.
+
 ## [0.8.1] - 2019-05-09
 
 * Support GHC 8.8/`template-haskell-2.15`.
