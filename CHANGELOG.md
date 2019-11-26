@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.8]
+## [0.8.1] - 2019-05-09
+
+* Support GHC 8.8/`template-haskell-2.15`.
+
+## [0.8] - 2019-04-26
 
 * Remove `Lift ()`, `Ratio`, `Identity` and `Const ()` instances.
   These are now provided in [`th-lift-instances` package](http://hackage.haskell.org/package/th-lift-instances)
