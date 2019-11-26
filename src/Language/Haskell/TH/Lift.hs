@@ -125,7 +125,11 @@ deriveLiftOne i = withInfo i liftInstance
 #endif
       instanceD (ctxt dcx phtys tys)
                 (conT ''Lift `appT` typ n tys)
-                [funD 'lift [clause [] (normalB (makeLiftOne n cons)) []]]
+                [ funD 'lift [clause [] (normalB (makeLiftOne n cons)) []]
+#if MIN_VERSION_template_haskell(2,16,0)
+                , funD 'liftTyped [clause [] (normalB [| unsafeTExpCoerce . lift |]) []]
+#endif
+                ]
     typ n = foldl appT (conT n) . map unKind
     -- Only consider *-kinded type variables, because Lift instances cannot
     -- meaningfully be given to types of other kinds. Further, filter out type
@@ -232,16 +236,28 @@ errorQExp = error
 
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
 
 #if MIN_VERSION_template_haskell(2,4,0)
 instance Lift OccName where
   lift n = [| mkOccName |] `appE` lift (occString n)
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
 
 instance Lift PkgName where
   lift n = [| mkPkgName |] `appE` lift (pkgString n)
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
 
 instance Lift ModName where
   lift n = [| mkModName |] `appE` lift (modString n)
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
 #endif /* MIN_VERSION_template_haskell(2,4,0) */
 
 instance Lift NameFlavour where
@@ -258,8 +274,14 @@ instance Lift NameFlavour where
 #endif /* __GLASGOW_HASKELL__ < 710 */
   lift (NameG nameSpace' pkgName modnam)
    = [| NameG nameSpace' pkgName modnam |]
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
 
 instance Lift NameSpace where
   lift VarName = [| VarName |]
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif

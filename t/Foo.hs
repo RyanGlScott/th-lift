@@ -15,6 +15,9 @@ import GHC.Prim (Char#)
 #endif
 
 import Language.Haskell.TH.Lift
+#if MIN_VERSION_template_haskell(2,16,0)
+import Language.Haskell.TH.Syntax (unsafeTExpCoerce)
+#endif
 
 -- Phantom type parameters can't be dealt with poperly on GHC < 7.8.
 #if MIN_VERSION_template_haskell(2,9,0)
@@ -61,9 +64,42 @@ $(deriveLift ''Empty)
 $(deriveLift ''Unboxed)
 instance Lift (f (Fix f)) => Lift (Fix f) where
   lift = $(makeLift ''Fix)
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
 
 #if MIN_VERSION_template_haskell(2,7,0)
 $(deriveLift 'FamPrefix1)
 instance (Eq a, Lift a) => Lift (Fam a Bool Bool) where
   lift = $(makeLift 'FamInstBool)
+#if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = unsafeTExpCoerce . lift
+#endif
+#endif
+
+#if MIN_VERSION_template_haskell(2,16,0)
+-- One can also implement Lift instances (on template-haskell-2.16+) by only
+-- defining liftTyped and using the default definition of lift in terms of
+-- liftTyped.
+newtype Fix2 f = In2 { out2 :: f (Fix2 f) }
+deriving instance Show (f (Fix2 f)) => Show (Fix2 f)
+
+data family   Fam2 a b c
+data instance Fam2 a Int Char
+  = Fam2Prefix1 a Char
+  | Fam2Prefix2 a
+  | Fam2Rec { fam2Field :: a }
+  | a :%%%: a
+  deriving Show
+data instance Fam2 a Bool Bool = Fam2InstBool a Bool
+  deriving Show
+
+$(pure [])
+
+instance Lift (f (Fix2 f)) => Lift (Fix2 f) where
+  liftTyped = unsafeTExpCoerce . $(makeLift ''Fix2)
+instance Lift a => Lift (Fam2 a Int Char) where
+  liftTyped = unsafeTExpCoerce . $(makeLift 'Fam2Prefix1)
+instance (Eq a, Lift a) => Lift (Fam2 a Bool Bool) where
+  liftTyped = unsafeTExpCoerce . $(makeLift 'Fam2InstBool)
 #endif
