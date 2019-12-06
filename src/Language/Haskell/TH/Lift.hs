@@ -40,7 +40,28 @@ import Control.Monad ((<=<), zipWithM)
 import Data.Maybe (catMaybes)
 #endif /* MIN_VERSION_template_haskell(2,9,0) */
 
--- | Derive Lift instances for the given datatype.
+-- | Derive a 'Lift' instance for the given datatype.
+--
+-- Note that 'deriveLift' uses a very simple technique for inferring the
+-- instance context: it simply takes all visible type variables from the data
+-- type declaration and adds a 'Lift' constraint for each one. For instance,
+-- in the following example:
+--
+-- @
+-- data Foo a b = ...
+-- $(deriveLift ''Foo)
+-- @
+--
+-- The following instance would be generated:
+--
+-- @
+-- instance (Lift a, Lift b) => Lift (Foo a b) where ...
+-- @
+--
+-- This will not work in all situations, however. For instance, there could
+-- conceivably be type variables that are not of the appropriate kind. For
+-- these other situations, the 'makeLift' function can provide a more
+-- fine-grained approach that allows specifying the instance context precisely.
 deriveLift :: Name -> Q [Dec]
 #if MIN_VERSION_template_haskell(2,9,0)
 deriveLift name = do
@@ -51,7 +72,7 @@ deriveLift name = do
 deriveLift = fmap (:[]) . deriveLiftOne <=< reifyDatatype
 #endif
 
--- | Derive Lift instances for many datatypes.
+-- | Derive 'Lift' instances for many datatypes.
 deriveLiftMany :: [Name] -> Q [Dec]
 #if MIN_VERSION_template_haskell(2,9,0)
 deriveLiftMany names = do
@@ -62,7 +83,7 @@ deriveLiftMany names = do
 deriveLiftMany = mapM deriveLiftOne <=< mapM reifyDatatype
 #endif
 
--- | Obtain Info values through a custom reification function. This is useful
+-- | Obtain 'Info' values through a custom reification function. This is useful
 -- when generating instances for datatypes that have not yet been declared.
 #if MIN_VERSION_template_haskell(2,9,0)
 deriveLift' :: [Role] -> Info -> Q [Dec]
@@ -87,6 +108,9 @@ deriveLiftMany' = mapM (deriveLiftOne <=< normalizeInfo)
 -- instance Lift (f (Fix f)) => Lift (Fix f) where
 --   lift = $(makeLift ''Fix)
 -- @
+--
+-- This can be useful when 'deriveLift' is not clever enough to infer the
+-- correct instance context, such as in the example above.
 makeLift :: Name -> Q Exp
 makeLift = makeLiftInternal <=< reifyDatatype
 
