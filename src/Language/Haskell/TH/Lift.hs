@@ -28,16 +28,9 @@ import GHC.Exts (Char(..))
 import GHC.Prim (Char#)
 #endif /* !(MIN_VERSION_template_haskell(2,11,0)) */
 
-import Control.Applicative
 #if MIN_VERSION_template_haskell(2,8,0)
 import Data.Char (ord)
 #endif /* !(MIN_VERSION_template_haskell(2,8,0)) */
-#if MIN_VERSION_base(4,8,0)
-import Data.Functor.Identity
-#endif
-#if !(MIN_VERSION_template_haskell(2,10,0))
-import Data.Ratio (Ratio)
-#endif /* !(MIN_VERSION_template_haskell(2,10,0)) */
 import Language.Haskell.TH
 import Language.Haskell.TH.Datatype
 import qualified Language.Haskell.TH.Lib as Lib (starK)
@@ -191,7 +184,8 @@ liftVar :: Name -> Type -> Q Exp
 liftVar varName (ConT tyName)
 #if MIN_VERSION_template_haskell(2,8,0)
   | tyName == ''Addr#   = apps
-    [ varE 'litE, varE 'stringPrimL, varE 'map, [| fromIntegral . ord |]
+    [ varE 'litE, varE 'stringPrimL, varE 'map
+    , infixApp (varE 'fromIntegral) (varE '(.)) (varE 'ord)
     , varE 'unpackCString# ]
 #else /* !(MIN_VERSION_template_haskell(2,8,0)) */
   | tyName == ''Addr#   = apps
