@@ -3,10 +3,10 @@ Version:            0.8.0.1
 Cabal-Version:      1.12
 License:            BSD3
 License-Files:      COPYING, BSD3, GPL-2
-Copyright:          © 2006 Ian Lynagh, © 2010-2018 Mathieu Boespflug
+Copyright:          © 2006 Ian Lynagh, © 2010-2019 Mathieu Boespflug, © 2019 Ryan Scott
 Author:             Ian Lynagh
-Maintainer:         Mathieu Boespflug <mboes@tweag.net>
-Homepage:           http://github.com/mboes/th-lift
+Maintainer:         Ryan Scott <ryan.gl.scott@gmail.com>
+Homepage:           http://github.com/RyanGlScott/th-lift
 Synopsis:           Derive Template Haskell's Lift class for datatypes.
 Description:
   Derive Template Haskell's Lift class for datatypes using @TemplateHaskell@
@@ -21,7 +21,7 @@ Extra-source-files: CHANGELOG.md
 
 source-repository head
   type:     git
-  location: git://github.com/mboes/th-lift
+  location: git://github.com/RyanGlScott/th-lift
 
 Library
   Default-Language: Haskell2010
