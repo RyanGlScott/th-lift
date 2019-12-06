@@ -184,8 +184,9 @@ liftVar :: Name -> Type -> Q Exp
 liftVar varName (ConT tyName)
 #if MIN_VERSION_template_haskell(2,8,0)
   | tyName == ''Addr#   = apps
-    [ varE 'litE, varE 'stringPrimL, varE 'map
-    , infixApp (varE 'fromIntegral) (varE '(.)) (varE 'ord)
+    [ varE 'litE, varE 'stringPrimL
+    , varE 'map `appE`
+        infixApp (varE 'fromIntegral) (varE '(.)) (varE 'ord)
     , varE 'unpackCString# ]
 #else /* !(MIN_VERSION_template_haskell(2,8,0)) */
   | tyName == ''Addr#   = apps

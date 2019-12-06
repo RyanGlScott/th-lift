@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 * Support GHC 8.10/`template-haskell-2.16`.
 * Derive implementations of `liftTyped` (in addition to `lift`) when using
   `template-haskell-2.16` or later.
+* Fix a bug in which derived `Lift` instances for data types containing
+  `Addr#` would fail to typecheck.
 
 ## [0.8.1] - 2019-05-09
 
