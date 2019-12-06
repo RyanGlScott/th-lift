@@ -240,7 +240,6 @@ instance Lift Name where
   liftTyped = unsafeTExpCoerce . lift
 #endif
 
-#if MIN_VERSION_template_haskell(2,4,0)
 instance Lift OccName where
   lift n = [| mkOccName |] `appE` lift (occString n)
 #if MIN_VERSION_template_haskell(2,16,0)
@@ -258,7 +257,6 @@ instance Lift ModName where
 #if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeTExpCoerce . lift
 #endif
-#endif /* MIN_VERSION_template_haskell(2,4,0) */
 
 instance Lift NameFlavour where
   lift NameS = [| NameS |]
