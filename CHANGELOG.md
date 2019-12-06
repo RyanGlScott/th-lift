@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [next] - ????-??-??
+## [0.8.1] - 2019-12-06
 
 * Support GHC 8.10/`template-haskell-2.16`.
 * Derive implementations of `liftTyped` (in addition to `lift`) when using
@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 * Fix a bug in which derived `Lift` instances for data types containing
   `Addr#` would fail to typecheck.
 
-## [0.8.1] - 2019-05-09
+## [0.8.0.1] - 2019-05-09
 
 * Support GHC 8.8/`template-haskell-2.15`.
 
