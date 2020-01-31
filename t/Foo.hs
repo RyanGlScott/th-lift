@@ -7,6 +7,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if __GLASGOW_HASKELL__ >= 810
+{-# LANGUAGE UnliftedNewtypes #-}
+#endif
 module Foo where
 
 import GHC.Prim (Double#, Float#, Int#, Word#)
@@ -16,7 +20,7 @@ import GHC.Prim (Char#)
 
 import Language.Haskell.TH.Lift
 #if MIN_VERSION_template_haskell(2,16,0)
-import Language.Haskell.TH.Syntax (unsafeTExpCoerce)
+import Language.Haskell.TH.Lift.Internal (unsafeSpliceCoerce)
 #endif
 
 -- Phantom type parameters can't be dealt with poperly on GHC < 7.8.
@@ -65,7 +69,7 @@ $(deriveLift ''Unboxed)
 instance Lift (f (Fix f)) => Lift (Fix f) where
   lift = $(makeLift ''Fix)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 
 #if MIN_VERSION_template_haskell(2,7,0)
@@ -73,7 +77,7 @@ $(deriveLift 'FamPrefix1)
 instance (Eq a, Lift a) => Lift (Fam a Bool Bool) where
   lift = $(makeLift 'FamInstBool)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 #endif
 
@@ -97,9 +101,15 @@ data instance Fam2 a Bool Bool = Fam2InstBool a Bool
 $(pure [])
 
 instance Lift (f (Fix2 f)) => Lift (Fix2 f) where
-  liftTyped = unsafeTExpCoerce . $(makeLift ''Fix2)
+  liftTyped = unsafeSpliceCoerce . $(makeLift ''Fix2)
 instance Lift a => Lift (Fam2 a Int Char) where
-  liftTyped = unsafeTExpCoerce . $(makeLift 'Fam2Prefix1)
+  liftTyped = unsafeSpliceCoerce . $(makeLift 'Fam2Prefix1)
 instance (Eq a, Lift a) => Lift (Fam2 a Bool Bool) where
-  liftTyped = unsafeTExpCoerce . $(makeLift 'Fam2InstBool)
+  liftTyped = unsafeSpliceCoerce . $(makeLift 'Fam2InstBool)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 810
+-- Regression test for #43
+newtype T43 = MkT43 Int#
+$(deriveLift ''T43)
 #endif
