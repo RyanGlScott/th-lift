@@ -144,7 +144,12 @@ deriveLiftOne i = withInfo i liftInstance
                 (conT ''Lift `appT` typ n tys)
                 [ funD 'lift [clause [] (normalB (makeLiftOne n cons)) []]
 #if MIN_VERSION_template_haskell(2,16,0)
-                , funD 'liftTyped [clause [] (normalB [| unsafeTExpCoerce . lift |]) []]
+                , funD 'liftTyped
+#if MIN_VERSION_template_haskell(2,17,0)
+                  [clause [] (normalB [| \t -> Code $ unsafeTExpCoerce $ lift t |]) []]
+#else
+                  [clause [] (normalB [| \t -> unsafeTExpCoerce $ lift t |]) []]
+#endif
 #endif
                 ]
     typ n = foldl appT (conT n) . map unKind
@@ -249,32 +254,44 @@ withInfo i f = case i of
 
 -- A type-restricted version of error that ensures makeLift always returns a
 -- value of type Q Exp, even when used on an empty datatype.
+#if MIN_VERSION_template_haskell(2,17,0)
+errorQExp :: Quote m => String -> m Exp
+#else
 errorQExp :: String -> Q Exp
+#endif
 errorQExp = error
 {-# INLINE errorQExp #-}
+
+#if MIN_VERSION_template_haskell(2,17,0)
+liftTypedDefault :: (Lift a, Quote m) => a -> Code m a
+liftTypedDefault = Code . unsafeTExpCoerce . lift
+#elif MIN_VERSION_template_haskell(2,16,0)
+liftTypedDefault :: Lift a => a -> Q (TExp a)
+liftTypedDefault = unsafeTExpCoerce . lift
+#endif
 
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = liftTypedDefault
 #endif
 
 instance Lift OccName where
   lift n = [| mkOccName |] `appE` lift (occString n)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = liftTypedDefault
 #endif
 
 instance Lift PkgName where
   lift n = [| mkPkgName |] `appE` lift (pkgString n)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = liftTypedDefault
 #endif
 
 instance Lift ModName where
   lift n = [| mkModName |] `appE` lift (modString n)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = liftTypedDefault
 #endif
 
 instance Lift NameFlavour where
@@ -292,7 +309,7 @@ instance Lift NameFlavour where
   lift (NameG nameSpace' pkgName modnam)
    = [| NameG nameSpace' pkgName modnam |]
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = liftTypedDefault
 #endif
 
 instance Lift NameSpace where
@@ -300,5 +317,5 @@ instance Lift NameSpace where
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = liftTypedDefault
 #endif

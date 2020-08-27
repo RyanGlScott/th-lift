@@ -16,7 +16,12 @@ import GHC.Prim (Char#)
 
 import Language.Haskell.TH.Lift
 #if MIN_VERSION_template_haskell(2,16,0)
-import Language.Haskell.TH.Syntax (unsafeTExpCoerce)
+import Language.Haskell.TH.Syntax (
+    unsafeTExpCoerce,
+#if MIN_VERSION_template_haskell(2,17,0)
+    Code(..),
+#endif
+    )
 #endif
 
 -- Phantom type parameters can't be dealt with poperly on GHC < 7.8.
@@ -64,7 +69,9 @@ $(deriveLift ''Empty)
 $(deriveLift ''Unboxed)
 instance Lift (f (Fix f)) => Lift (Fix f) where
   lift = $(makeLift ''Fix)
-#if MIN_VERSION_template_haskell(2,16,0)
+#if MIN_VERSION_template_haskell(2,17,0)
+  liftTyped = Code . unsafeTExpCoerce . lift
+#elif MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeTExpCoerce . lift
 #endif
 
@@ -72,7 +79,9 @@ instance Lift (f (Fix f)) => Lift (Fix f) where
 $(deriveLift 'FamPrefix1)
 instance (Eq a, Lift a) => Lift (Fam a Bool Bool) where
   lift = $(makeLift 'FamInstBool)
-#if MIN_VERSION_template_haskell(2,16,0)
+#if MIN_VERSION_template_haskell(2,17,0)
+  liftTyped = Code . unsafeTExpCoerce . lift
+#elif MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeTExpCoerce . lift
 #endif
 #endif
@@ -96,10 +105,19 @@ data instance Fam2 a Bool Bool = Fam2InstBool a Bool
 
 $(pure [])
 
+#if MIN_VERSION_template_haskell(2,17,0)
+instance Lift (f (Fix2 f)) => Lift (Fix2 f) where
+  liftTyped = Code . unsafeTExpCoerce . $(makeLift ''Fix2)
+instance Lift a => Lift (Fam2 a Int Char) where
+  liftTyped = Code . unsafeTExpCoerce . $(makeLift 'Fam2Prefix1)
+instance (Eq a, Lift a) => Lift (Fam2 a Bool Bool) where
+  liftTyped = Code . unsafeTExpCoerce . $(makeLift 'Fam2InstBool)
+#else
 instance Lift (f (Fix2 f)) => Lift (Fix2 f) where
   liftTyped = unsafeTExpCoerce . $(makeLift ''Fix2)
 instance Lift a => Lift (Fam2 a Int Char) where
   liftTyped = unsafeTExpCoerce . $(makeLift 'Fam2Prefix1)
 instance (Eq a, Lift a) => Lift (Fam2 a Bool Bool) where
   liftTyped = unsafeTExpCoerce . $(makeLift 'Fam2InstBool)
+#endif
 #endif
