@@ -34,6 +34,7 @@ import Data.Char (ord)
 import Language.Haskell.TH
 import Language.Haskell.TH.Datatype
 import qualified Language.Haskell.TH.Lib as Lib (starK)
+import Language.Haskell.TH.Lift.Internal
 import Language.Haskell.TH.Syntax
 import Control.Monad ((<=<), zipWithM)
 #if MIN_VERSION_template_haskell(2,9,0)
@@ -140,17 +141,19 @@ deriveLiftOne i = withInfo i liftInstance
 #else /* MIN_VERSION_template_haskell(2,9,0) */
       let phtys = []
 #endif
+      _x <- newName "x"
       instanceD (ctxt dcx phtys tys)
                 (conT ''Lift `appT` typ n tys)
                 [ funD 'lift [clause [] (normalB (makeLiftOne n cons)) []]
 #if MIN_VERSION_template_haskell(2,16,0)
-                , funD 'liftTyped [clause [] (normalB [| unsafeTExpCoerce . lift |]) []]
+                , let rhs = varE 'unsafeSpliceCoerce `appE`
+                              (varE 'lift `appE` varE _x) in
+                  funD 'liftTyped [clause [varP _x] (normalB rhs) []]
 #endif
                 ]
     typ n = foldl appT (conT n) . map unKind
-    -- Only consider *-kinded type variables, because Lift instances cannot
-    -- meaningfully be given to types of other kinds. Further, filter out type
-    -- variables that are obviously phantom.
+    -- Only consider *-kinded type variables for now. Furthermore, filter out
+    -- type variables that are obviously phantom.
     ctxt dcx phtys =
         fmap (dcx ++) . cxt . concatMap liftPred . filter (`notElem` phtys)
     liftPred ty =
@@ -176,7 +179,8 @@ makeLiftOne n cons = do
 consMatches :: Name -> [ConstructorInfo] -> [Q Match]
 consMatches n [] = [match wildP (normalB e) []]
   where
-    e = varE 'errorQExp `appE` (stringE $ "Can't lift value of empty datatype " ++ nameBase n)
+    e = varE 'errorQuoteExp `appE`
+             (stringE $ "Can't lift value of empty datatype " ++ nameBase n)
 consMatches _ cons = concatMap doCons cons
 
 doCons :: ConstructorInfo -> [Q Match]
@@ -247,34 +251,28 @@ withInfo i f = case i of
                  } ->
       f dcx n vs cons
 
--- A type-restricted version of error that ensures makeLift always returns a
--- value of type Q Exp, even when used on an empty datatype.
-errorQExp :: String -> Q Exp
-errorQExp = error
-{-# INLINE errorQExp #-}
-
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 
 instance Lift OccName where
   lift n = [| mkOccName |] `appE` lift (occString n)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 
 instance Lift PkgName where
   lift n = [| mkPkgName |] `appE` lift (pkgString n)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 
 instance Lift ModName where
   lift n = [| mkModName |] `appE` lift (modString n)
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 
 instance Lift NameFlavour where
@@ -292,7 +290,7 @@ instance Lift NameFlavour where
   lift (NameG nameSpace' pkgName modnam)
    = [| NameG nameSpace' pkgName modnam |]
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif
 
 instance Lift NameSpace where
@@ -300,5 +298,5 @@ instance Lift NameSpace where
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
 #if MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = unsafeTExpCoerce . lift
+  liftTyped = unsafeSpliceCoerce . lift
 #endif

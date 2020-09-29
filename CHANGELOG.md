@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [next] - ????-??-??
+
+* Allow building with `template-haskell-2.17.0.0` (GHC 9.0).
+* Make `deriveLift` work for unlifted newtypes.
+
 ## [0.8.1] - 2019-12-06
 
 * Support GHC 8.10/`template-haskell-2.16`.
