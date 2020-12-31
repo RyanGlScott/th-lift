@@ -2,7 +2,7 @@
 [![Hackage](https://img.shields.io/hackage/v/th-lift.svg)][Hackage: th-lift]
 [![Hackage Dependencies](https://img.shields.io/hackage-deps/v/th-lift.svg)](http://packdeps.haskellers.com/reverse/th-lift)
 [![Haskell Programming Language](https://img.shields.io/badge/language-Haskell-blue.svg)][Haskell.org]
-[![Build](https://travis-ci.org/RyanGlScott/th-lift.svg?branch=master)](https://travis-ci.org/RyanGlScott/th-lift)
+[![Build Status](https://github.com/RyanGlScott/th-lift/workflows/Haskell-CI/badge.svg)](https://github.com/RyanGlScott/th-lift/actions?query=workflow%3AHaskell-CI)
 
 [Hackage: th-lift]:
   http://hackage.haskell.org/package/th-lift
