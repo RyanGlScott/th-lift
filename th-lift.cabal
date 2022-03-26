@@ -57,6 +57,8 @@ Test-Suite test
   Hs-Source-Dirs:   t
   other-modules:    Foo
   ghc-options:      -Wall
+  if impl(ghc >= 9.0)
+    ghc-options:    -fenable-th-splice-warnings
   Build-Depends:    base,
                     ghc-prim,
                     th-lift,
