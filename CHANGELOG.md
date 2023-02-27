@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [next] - ????.??.??
+## [0.8.3] - 2023.02.27
 
 * Support building with `th-abstraction-0.5.*`.
 * Require `th-abstraction-0.3.0.0` or later.
