@@ -32,7 +32,7 @@ import GHC.Prim (Char#)
 import Data.Char (ord)
 #endif /* !(MIN_VERSION_template_haskell(2,8,0)) */
 import Language.Haskell.TH
-import Language.Haskell.TH.Datatype
+import Language.Haskell.TH.Datatype as Datatype
 import qualified Language.Haskell.TH.Lib as Lib (starK)
 import Language.Haskell.TH.Lift.Internal
 import Language.Haskell.TH.Syntax
@@ -244,8 +244,25 @@ withInfo i f = case i of
                  , datatypeName      = n
                  , datatypeInstTypes = vs
                  , datatypeCons      = cons
-                 } ->
+                 , datatypeVariant   = variant
+                 } -> do
+      case variant of
+#if MIN_VERSION_th_abstraction(0,5,0)
+        Datatype.TypeData -> typeDataError n
+#endif
+        _ -> return ()
       f dcx n vs cons
+
+#if MIN_VERSION_th_abstraction(0,5,0)
+-- | We cannot define implementations for @lift@ at the term level for
+-- @type data@ declarations, which only exist at the type level.
+typeDataError :: Name -> Q a
+typeDataError dataName = fail
+  . showString "Cannot derive instance for ‘"
+  . showString (nameBase dataName)
+  . showString "‘, which is a ‘type data‘ declaration"
+  $ ""
+#endif
 
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [next] - ????.??.??
 
+* Support building with `th-abstraction-0.5.*`.
 * Require `th-abstraction-0.3.0.0` or later.
 
 ## [0.8.2] - 2020-09-29
