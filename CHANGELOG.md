@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [next] - ????.??.??
+
+* Require `th-abstraction-0.3.0.0` or later.
+
 ## [0.8.2] - 2020-09-29
 
 * Allow building with `template-haskell-2.17.0.0` (GHC 9.0).

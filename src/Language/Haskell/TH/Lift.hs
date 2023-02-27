@@ -242,11 +242,7 @@ withInfo :: DatatypeInfo
 withInfo i f = case i of
     DatatypeInfo { datatypeContext   = dcx
                  , datatypeName      = n
-#if MIN_VERSION_th_abstraction(0,3,0)
                  , datatypeInstTypes = vs
-#else
-                 , datatypeVars      = vs
-#endif
                  , datatypeCons      = cons
                  } ->
       f dcx n vs cons

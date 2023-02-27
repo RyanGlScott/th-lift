@@ -44,10 +44,10 @@ Library
   else
     Other-Extensions: TemplateHaskell
   Hs-Source-Dirs:   src
-  Build-Depends:    base              >= 4.3  && < 5,
+  Build-Depends:    base             >= 4.3 && < 5,
                     ghc-prim,
-                    th-abstraction   >= 0.2.3 && < 0.5,
-                    template-haskell >= 2.5   && < 2.20
+                    th-abstraction   >= 0.3 && < 0.5,
+                    template-haskell >= 2.5 && < 2.20
   ghc-options:      -Wall
 
 Test-Suite test
