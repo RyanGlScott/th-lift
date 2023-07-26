@@ -310,6 +310,9 @@ instance Lift NameSpace where
   lift VarName = [| VarName |]
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
+#if MIN_VERSION_template_haskell(2,21,0)
+  lift (FldName parent) = [| FldName parent |]
+#endif
 #if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
 #endif

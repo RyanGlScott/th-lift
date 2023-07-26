@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [next] - ????.??.??
+
+* Add support for the `FldName` `NameSpace`, which was introduced in
+  `template-haskell-2.21.0.0` (GHC 9.8).
+
 ## [0.8.3] - 2023.02.27
 
 * Support building with `th-abstraction-0.5.*`.
