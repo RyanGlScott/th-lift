@@ -46,7 +46,7 @@ Library
   Hs-Source-Dirs:   src
   Build-Depends:    base             >= 4.3 && < 5,
                     ghc-prim,
-                    th-abstraction   >= 0.3 && < 0.7,
+                    th-abstraction   >= 0.3 && < 0.8,
                     template-haskell >= 2.5 && < 2.22
   ghc-options:      -Wall
 
