@@ -1,14 +1,10 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-#if __GLASGOW_HASKELL__ >= 800
 {-# LANGUAGE TemplateHaskellQuotes #-}
-#else
-{-# LANGUAGE TemplateHaskell #-}
-#endif
+{-# LANGUAGE TypeSynonymInstances #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.TH.Lift
   ( deriveLift
@@ -20,26 +16,20 @@ module Language.Haskell.TH.Lift
   , Lift(..)
   ) where
 
-import GHC.Base (unpackCString#)
-import GHC.Exts (Double(..), Float(..), Int(..), Word(..))
-import GHC.Prim (Addr#, Double#, Float#, Int#, Word#)
-#if MIN_VERSION_template_haskell(2,11,0)
-import GHC.Exts (Char(..))
-import GHC.Prim (Char#)
-#endif /* !(MIN_VERSION_template_haskell(2,11,0)) */
+import Control.Monad ((<=<), zipWithM)
 
-#if MIN_VERSION_template_haskell(2,8,0)
 import Data.Char (ord)
-#endif /* !(MIN_VERSION_template_haskell(2,8,0)) */
+import Data.Maybe (catMaybes)
+
+import GHC.Base (unpackCString#)
+import GHC.Exts (Char(..), Double(..), Float(..), Int(..), Word(..))
+import GHC.Prim (Addr#, Char#, Double#, Float#, Int#, Word#)
+
 import Language.Haskell.TH
 import Language.Haskell.TH.Datatype as Datatype
 import qualified Language.Haskell.TH.Lib as Lib (starK)
 import Language.Haskell.TH.Lift.Internal
 import Language.Haskell.TH.Syntax
-import Control.Monad ((<=<), zipWithM)
-#if MIN_VERSION_template_haskell(2,9,0)
-import Data.Maybe (catMaybes)
-#endif /* MIN_VERSION_template_haskell(2,9,0) */
 
 -- | Derive a 'Lift' instance for the given datatype.
 --
@@ -64,41 +54,25 @@ import Data.Maybe (catMaybes)
 -- these other situations, the 'makeLift' function can provide a more
 -- fine-grained approach that allows specifying the instance context precisely.
 deriveLift :: Name -> Q [Dec]
-#if MIN_VERSION_template_haskell(2,9,0)
 deriveLift name = do
   roles <- reifyDatatypeRoles name
   info <- reifyDatatype name
   fmap (:[]) $ deriveLiftOne roles info
-#else
-deriveLift = fmap (:[]) . deriveLiftOne <=< reifyDatatype
-#endif
 
 -- | Derive 'Lift' instances for many datatypes.
 deriveLiftMany :: [Name] -> Q [Dec]
-#if MIN_VERSION_template_haskell(2,9,0)
 deriveLiftMany names = do
   roles <- mapM reifyDatatypeRoles names
   infos <- mapM reifyDatatype names
   mapM (uncurry deriveLiftOne) $ zip roles infos
-#else
-deriveLiftMany = mapM deriveLiftOne <=< mapM reifyDatatype
-#endif
 
 -- | Obtain 'Info' values through a custom reification function. This is useful
 -- when generating instances for datatypes that have not yet been declared.
-#if MIN_VERSION_template_haskell(2,9,0)
 deriveLift' :: [Role] -> Info -> Q [Dec]
 deriveLift' roles = fmap (:[]) . deriveLiftOne roles <=< normalizeInfo
 
 deriveLiftMany' :: [([Role], Info)] -> Q [Dec]
 deriveLiftMany' = mapM (\(rs, i) -> deriveLiftOne rs =<< normalizeInfo i)
-#else
-deriveLift' :: Info -> Q [Dec]
-deriveLift' = fmap (:[]) . deriveLiftOne <=< normalizeInfo
-
-deriveLiftMany' :: [Info] -> Q [Dec]
-deriveLiftMany' = mapM (deriveLiftOne <=< normalizeInfo)
-#endif
 
 -- | Generates a lambda expresson which behaves like 'lift' (without requiring
 -- a 'Lift' instance). Example:
@@ -122,25 +96,16 @@ makeLift' = makeLiftInternal <=< normalizeInfo
 makeLiftInternal :: DatatypeInfo -> Q Exp
 makeLiftInternal i = withInfo i $ \_ n _ cons -> makeLiftOne n cons
 
-#if MIN_VERSION_template_haskell(2,9,0)
 deriveLiftOne :: [Role] -> DatatypeInfo -> Q Dec
 deriveLiftOne roles i = withInfo i liftInstance
-#else
-deriveLiftOne :: DatatypeInfo -> Q Dec
-deriveLiftOne i = withInfo i liftInstance
-#endif
   where
     liftInstance dcx n tys cons = do
-#if MIN_VERSION_template_haskell(2,9,0)
       -- roles <- reifyDatatypeRoles n
       -- Compute the set of phantom variables.
       let phtys = catMaybes $
             zipWith (\t role -> if role == PhantomR then Just t else Nothing)
                     tys
                     roles
-#else /* MIN_VERSION_template_haskell(2,9,0) */
-      let phtys = []
-#endif
       _x <- newName "x"
       instanceD (ctxt dcx phtys tys)
                 (conT ''Lift `appT` typ n tys)
@@ -162,11 +127,7 @@ deriveLiftOne i = withInfo i liftInstance
           | k == Lib.starK -> mkLift t
           | otherwise      -> []
         _                  -> mkLift ty
-#if MIN_VERSION_template_haskell(2,10,0)
     mkLift ty = [conT ''Lift `appT` (return ty)]
-#else
-    mkLift ty = [classP ''Lift [return ty]]
-#endif
     unKind (SigT t k)
       | k == Lib.starK = return t
     unKind t           = return t
@@ -198,7 +159,6 @@ doCons (ConstructorInfo { constructorName    = c
         let e = foldl (\e1 e2 -> varE 'appE `appE` e1 `appE` e2) con $ zipWith liftVar ns ts
         in match (conP c (map varP ns)) (normalB e) []
 
-#if MIN_VERSION_template_haskell(2,9,0)
 -- Reify the roles of a data type. Note that the argument Name may correspond
 -- to that of a data family instance constructor, so we need to go through
 -- reifyDatatype to determine what the parent data family Name is.
@@ -206,23 +166,15 @@ reifyDatatypeRoles :: Name -> Q [Role]
 reifyDatatypeRoles n = do
   DatatypeInfo { datatypeName = dn } <- reifyDatatype n
   qReifyRoles dn
-#endif
 
 liftVar :: Name -> Type -> Q Exp
 liftVar varName (ConT tyName)
-#if MIN_VERSION_template_haskell(2,8,0)
   | tyName == ''Addr#   = apps
     [ varE 'litE, varE 'stringPrimL
     , varE 'map `appE`
         infixApp (varE 'fromIntegral) (varE '(.)) (varE 'ord)
     , varE 'unpackCString# ]
-#else /* !(MIN_VERSION_template_haskell(2,8,0)) */
-  | tyName == ''Addr#   = apps
-    [ varE 'litE, varE 'stringPrimL, varE 'unpackCString# ]
-#endif
-#if MIN_VERSION_template_haskell(2,11,0)
   | tyName == ''Char#   = apps [ varE 'litE, varE 'charPrimL, conE 'C# ]
-#endif  /* !(MIN_VERSION_template_haskell(2,11,0)) */
   | tyName == ''Double# = apps [ varE 'litE, varE 'doublePrimL, varE 'toRational, conE 'D# ]
   | tyName == ''Float#  = apps [ varE 'litE, varE 'floatPrimL,  varE 'toRational, conE 'F# ]
   | tyName == ''Int#    = apps [ varE 'litE, varE 'intPrimL,    varE 'toInteger,  conE 'I# ]
@@ -247,13 +199,10 @@ withInfo i f = case i of
                  , datatypeVariant   = variant
                  } -> do
       case variant of
-#if MIN_VERSION_th_abstraction(0,5,0)
         Datatype.TypeData -> typeDataError n
-#endif
         _ -> return ()
       f dcx n vs cons
 
-#if MIN_VERSION_th_abstraction(0,5,0)
 -- | We cannot define implementations for @lift@ at the term level for
 -- @type data@ declarations, which only exist at the type level.
 typeDataError :: Name -> Q a
@@ -262,7 +211,6 @@ typeDataError dataName = fail
   . showString (nameBase dataName)
   . showString "‘, which is a ‘type data‘ declaration"
   $ ""
-#endif
 
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
@@ -291,15 +239,8 @@ instance Lift ModName where
 instance Lift NameFlavour where
   lift NameS = [| NameS |]
   lift (NameQ modnam) = [| NameQ modnam |]
-#if __GLASGOW_HASKELL__ >= 710
   lift (NameU i) = [| NameU i |]
   lift (NameL i) = [| NameL i |]
-#else /* __GLASGOW_HASKELL__ < 710 */
-  lift (NameU i) = [| case $( lift (I# i) ) of
-                          I# i' -> NameU i' |]
-  lift (NameL i) = [| case $( lift (I# i) ) of
-                          I# i' -> NameL i' |]
-#endif /* __GLASGOW_HASKELL__ < 710 */
   lift (NameG nameSpace' pkgName modnam)
    = [| NameG nameSpace' pkgName modnam |]
 #if MIN_VERSION_template_haskell(2,16,0)

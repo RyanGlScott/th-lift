@@ -13,22 +13,14 @@
 #endif
 module Foo where
 
-import GHC.Prim (Double#, Float#, Int#, Word#)
-#if MIN_VERSION_template_haskell(2,11,0)
-import GHC.Prim (Char#)
-#endif
+import GHC.Prim (Char#, Double#, Float#, Int#, Word#)
 
 import Language.Haskell.TH.Lift
 #if MIN_VERSION_template_haskell(2,16,0)
 import Language.Haskell.TH.Lift.Internal (unsafeSpliceCoerce)
 #endif
 
--- Phantom type parameters can't be dealt with poperly on GHC < 7.8.
-#if MIN_VERSION_template_haskell(2,9,0)
 data (Eq a) => Foo a b = Foo a Char | Bar a
-#else
-data (Eq a) => Foo a = Foo a Char | Bar a
-#endif
     deriving Show
 
 newtype Rec a = Rec { field :: a }
@@ -37,10 +29,7 @@ newtype Rec a = Rec { field :: a }
 data Empty a
 
 data Unboxed = Unboxed {
--- Template Haskell couldn't handle unlifted chars on GHC < 8.0
-#if MIN_VERSION_template_haskell(2,11,0)
   primChar   :: Char#,
-#endif
   primDouble :: Double#,
   primFloat  :: Float#,
   primInt    :: Int#,
@@ -50,7 +39,6 @@ data Unboxed = Unboxed {
 newtype Fix f = In { out :: f (Fix f) }
 deriving instance Show (f (Fix f)) => Show (Fix f)
 
-#if MIN_VERSION_template_haskell(2,7,0)
 data family   Fam a b c
 data instance Fam a Int Char
   = FamPrefix1 a Char
@@ -60,7 +48,6 @@ data instance Fam a Int Char
   deriving Show
 data instance Fam a Bool Bool = FamInstBool a Bool
   deriving Show
-#endif
 
 $(deriveLift ''Foo)
 $(deriveLift ''Rec)
@@ -72,13 +59,11 @@ instance Lift (f (Fix f)) => Lift (Fix f) where
   liftTyped = unsafeSpliceCoerce . lift
 #endif
 
-#if MIN_VERSION_template_haskell(2,7,0)
 $(deriveLift 'FamPrefix1)
 instance (Eq a, Lift a) => Lift (Fam a Bool Bool) where
   lift = $(makeLift 'FamInstBool)
 #if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
-#endif
 #endif
 
 #if MIN_VERSION_template_haskell(2,16,0)

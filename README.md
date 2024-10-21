@@ -14,8 +14,8 @@
 Derive Template Haskell's `Lift` class for datatypes using `TemplateHaskell`.
 The functionality in this package has largely been subsumed by the
 `DeriveLift` language extension, which is available in GHC 8.0 and later
-versions. This package can still be useful as a uniform way to derive
-`Lift` instances that is backwards-compatible with older GHCs.
+versions. As such, this package is only useful as a way to backport bugfixes
+to `DeriveLift` in later GHC versions back to older GHCs.
 
 The following libraries are related:
 

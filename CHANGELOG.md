@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [next] - ????.??.??
+
+* Drop support for pre-8.0 versions of GHC.
+
 ## [0.8.4] - 2023.08.01
 
 * Add support for the `FldName` `NameSpace`, which was introduced in

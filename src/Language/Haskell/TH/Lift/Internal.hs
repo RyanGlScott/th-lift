@@ -1,9 +1,6 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
-#if __GLASGOW_HASKELL__ >= 706
 {-# LANGUAGE PolyKinds #-}
-#endif
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Helper functions used in code that "Language.Haskell.TH.Lift" generates.
 --
@@ -30,15 +27,13 @@ errorQuoteExp = error
 -- | This is a cargo-culted version of @unsafeSpliceCoerce@ from the
 -- @th-compat@ library, which has been copied here to avoid incurring a library
 -- dependency.
---
--- Only available when built with @template-haskell-2.9.0.0@ or later.
 #if MIN_VERSION_template_haskell(2,17,0)
 unsafeSpliceCoerce :: forall (r :: RuntimeRep) (a :: TYPE r) m. Quote m => m Exp -> Code m a
 unsafeSpliceCoerce = unsafeCodeCoerce
 #elif MIN_VERSION_template_haskell(2,16,0)
 unsafeSpliceCoerce :: forall (r :: RuntimeRep) (a :: TYPE r). Q Exp -> Q (TExp a)
 unsafeSpliceCoerce = unsafeTExpCoerce
-#elif MIN_VERSION_template_haskell(2,9,0)
+#else
 unsafeSpliceCoerce :: forall a. Q Exp -> Q (TExp a)
 unsafeSpliceCoerce = unsafeTExpCoerce
 #endif
