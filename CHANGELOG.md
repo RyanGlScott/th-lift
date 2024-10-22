@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [next] - ????.??.??
+## [0.8.5] - 2024.10.22
 
 * Support building with `template-haskell-2.22.1`.
 * Drop support for pre-8.0 versions of GHC.
