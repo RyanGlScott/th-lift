@@ -212,29 +212,30 @@ typeDataError dataName = fail
   . showString "‘, which is a ‘type data‘ declaration"
   $ ""
 
+#if !MIN_VERSION_template_haskell(2,22,1)
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
-#if MIN_VERSION_template_haskell(2,16,0)
+# if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
-#endif
+# endif
 
 instance Lift OccName where
   lift n = [| mkOccName |] `appE` lift (occString n)
-#if MIN_VERSION_template_haskell(2,16,0)
+# if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
-#endif
+# endif
 
 instance Lift PkgName where
   lift n = [| mkPkgName |] `appE` lift (pkgString n)
-#if MIN_VERSION_template_haskell(2,16,0)
+# if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
-#endif
+# endif
 
 instance Lift ModName where
   lift n = [| mkModName |] `appE` lift (modString n)
-#if MIN_VERSION_template_haskell(2,16,0)
+# if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
-#endif
+# endif
 
 instance Lift NameFlavour where
   lift NameS = [| NameS |]
@@ -243,17 +244,18 @@ instance Lift NameFlavour where
   lift (NameL i) = [| NameL i |]
   lift (NameG nameSpace' pkgName modnam)
    = [| NameG nameSpace' pkgName modnam |]
-#if MIN_VERSION_template_haskell(2,16,0)
+# if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
-#endif
+# endif
 
 instance Lift NameSpace where
   lift VarName = [| VarName |]
   lift DataName = [| DataName |]
   lift TcClsName = [| TcClsName |]
-#if MIN_VERSION_template_haskell(2,21,0)
+# if MIN_VERSION_template_haskell(2,21,0)
   lift (FldName parent) = [| FldName parent |]
-#endif
-#if MIN_VERSION_template_haskell(2,16,0)
+# endif
+# if MIN_VERSION_template_haskell(2,16,0)
   liftTyped = unsafeSpliceCoerce . lift
+# endif
 #endif
