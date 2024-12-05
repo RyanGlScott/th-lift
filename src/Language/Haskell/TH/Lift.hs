@@ -212,7 +212,7 @@ typeDataError dataName = fail
   . showString "‘, which is a ‘type data‘ declaration"
   $ ""
 
-#if !MIN_VERSION_template_haskell(2,22,1)
+#if !MIN_VERSION_template_haskell(2,23,0)
 instance Lift Name where
   lift (Name occName nameFlavour) = [| Name occName nameFlavour |]
 # if MIN_VERSION_template_haskell(2,16,0)

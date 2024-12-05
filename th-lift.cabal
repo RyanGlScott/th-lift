@@ -43,7 +43,7 @@ Library
   Build-Depends:    base             >= 4.9  && < 5,
                     ghc-prim,
                     th-abstraction   >= 0.5  && < 0.8,
-                    template-haskell >= 2.11 && < 2.23
+                    template-haskell >= 2.11 && < 2.24
   ghc-options:      -Wall
 
 Test-Suite test
