@@ -21,8 +21,9 @@ import Control.Monad ((<=<), zipWithM)
 import Data.Char (ord)
 import Data.Maybe (catMaybes)
 
+import GHC.Base (unpackCString#)
 import GHC.Exts (Addr#, Char(..), Char#, Double(..), Double#, Float(..),
-                 Float#, Int(..), Int#, Word(..), Word#, unpackCString#)
+                 Float#, Int(..), Int#, Word(..), Word#)
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Datatype as Datatype
