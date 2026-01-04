@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [next] - ???.??.??
+
+* Support building with `template-haskell-2.24.*`.
+
 ## [0.8.6] - 2024.12.05
 
 * Support building with `template-haskell-2.23.0`.
