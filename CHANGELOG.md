@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [next] - ???.??.??
+## [0.8.7] - 2026.01.03
 
 * Support building with `template-haskell-2.24.*`.
 * Remove unnecessary `ghc-prim` dependency.
