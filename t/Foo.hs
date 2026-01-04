@@ -13,7 +13,7 @@
 #endif
 module Foo where
 
-import GHC.Prim (Char#, Double#, Float#, Int#, Word#)
+import GHC.Exts (Char#, Double#, Float#, Int#, Word#)
 
 import Language.Haskell.TH.Lift
 #if MIN_VERSION_template_haskell(2,16,0)
